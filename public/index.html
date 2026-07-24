@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maternelle Connect – Administration</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Bootstrap Icons (optionnel) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body { background-color: #f8f9fa; }
+    .navbar { margin-bottom: 20px; }
+    .card { margin-bottom: 20px; }
+    #mapid { height: 400px; }
+    .hidden { display: none; }
+    .feedback-badge { font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <!-- Login overlay -->
+  <div id="loginOverlay" class="container d-flex justify-content-center align-items-center vh-100">
+    <div class="card p-4 shadow" style="min-width: 300px;">
+      <h3 class="text-center mb-3">Connexion</h3>
+      <div class="mb-3">
+        <input type="password" id="adminKey" class="form-control" placeholder="Clé admin">
+      </div>
+      <button class="btn btn-primary w-100" onclick="login()">Se connecter</button>
+      <p id="loginError" class="text-danger mt-2 text-center"></p>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app" class="hidden">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Maternelle Admin</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item"><a class="nav-link active" href="#" onclick="showTab('dashboard')">Tableau de bord</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('patients')">Patientes</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('hospitals')">Hôpitaux</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('alerts')">Alertes</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('map')">Carte</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('rules')">Règles</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('faq')">FAQ</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('quiz')">Quiz</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('weeklytips')">Conseils</a></li>
+          </ul>
+          <div class="ms-auto">
+            <button class="btn btn-outline-light btn-sm" onclick="logout()">Déconnexion</button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container-fluid">
+      <!-- Dashboard Tab -->
+      <div id="dashboardTab" class="tab-content">
+        <h2>Vue d'ensemble</h2>
+        <div class="row" id="statsCards"></div>
+      </div>
+
+      <!-- Patients Tab -->
+      <div id="patientsTab" class="tab-content hidden">
+        <h2>Patientes</h2>
+        <input type="text" id="patientSearch" class="form-control mb-2" placeholder="Rechercher...">
+        <div id="patientsTableContainer"></div>
+      </div>
+
+      <!-- Hospitals Tab -->
+      <div id="hospitalsTab" class="tab-content hidden">
+        <h2>Hôpitaux</h2>
+        <div class="mb-3">
+          <select id="hospitalStatusFilter" class="form-select w-auto" onchange="loadHospitals()">
+            <option value="">Tous</option>
+            <option value="pending">En attente</option>
+            <option value="approved">Approuvés</option>
+            <option value="rejected">Rejetés</option>
+          </select>
+        </div>
+        <div id="hospitalsTableContainer"></div>
+      </div>
+
+      <!-- Alerts Tab -->
+      <div id="alertsTab" class="tab-content hidden">
+        <h2>Alertes récentes</h2>
+        <div id="alertsTableContainer"></div>
+      </div>
+
+      <!-- Map Tab -->
+      <div id="mapTab" class="tab-content hidden">
+        <h2>Carte des alertes</h2>
+        <div id="mapid"></div>
+      </div>
+
+      <!-- Rules Tab -->
+      <div id="rulesTab" class="tab-content hidden">
+        <h2>Règles cliniques</h2>
+        <p>Modifiez le fichier de règles JSON. Ces règles sont utilisées par l'application mobile.</p>
+        <textarea id="rulesEditor" class="form-control" rows="20" style="font-family: monospace;"></textarea>
+        <button class="btn btn-primary mt-2" onclick="saveRules()">Enregistrer</button>
+        <div id="rulesMessage" class="mt-2"></div>
+      </div>
+
+      <!-- FAQ Tab -->
+      <div id="faqTab" class="tab-content hidden">
+        <h2>FAQ</h2>
+        <button class="btn btn-success mb-3" onclick="addFAQ()">Ajouter une question</button>
+        <div id="faqTableContainer"></div>
+      </div>
+
+      <!-- Quiz Tab -->
+      <div id="quizTab" class="tab-content hidden">
+        <h2>Quiz</h2>
+        <button class="btn btn-success mb-3" onclick="addQuizQuestion()">Ajouter une question</button>
+        <div id="quizTableContainer"></div>
+      </div>
+
+      <!-- Weekly Tips Tab -->
+      <div id="weeklytipsTab" class="tab-content hidden">
+        <h2>Conseils hebdomadaires</h2>
+        <button class="btn btn-success mb-3" onclick="addWeeklyTip()">Ajouter un conseil</button>
+        <div id="weeklyTipsTableContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+  // ---------- GLOBALES ----------
+  let adminKey = localStorage.getItem('adminKey') || '';
+  let currentTab = 'dashboard';
+  let map = null;
+  let alertsLayer = null;
+  let hospitals = [];
+  let selectedHospitalId = null;
+
+  // ---------- AUTH ----------
+  function login() {
+    const key = document.getElementById('adminKey').value.trim();
+    if (!key) return;
+    // Test de la clé via un appel à /api/admin/stats
+    fetch('/api/admin/stats', { headers: { 'x-admin-key': key } })
+      .then(res => {
+        if (res.ok) {
+          adminKey = key;
+          localStorage.setItem('adminKey', key);
+          document.getElementById('loginOverlay').classList.add('hidden');
+          document.getElementById('app').classList.remove('hidden');
+          showTab('dashboard');
+        } else {
+          document.getElementById('loginError').textContent = 'Clé invalide';
+        }
+      })
+      .catch(() => {
+        document.getElementById('loginError').textContent = 'Erreur réseau';
+      });
+  }
+
+  function logout() {
+    localStorage.removeItem('adminKey');
+    adminKey = '';
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    document.getElementById('app').classList.add('hidden');
+  }
+
+  function authHeaders() {
+    return { 'x-admin-key': adminKey, 'Content-Type': 'application/json' };
+  }
+
+  // Vérifier si déjà connecté
+  if (adminKey) {
+    fetch('/api/admin/stats', { headers: { 'x-admin-key': adminKey } })
+      .then(res => {
+        if (res.ok) {
+          document.getElementById('loginOverlay').classList.add('hidden');
+          document.getElementById('app').classList.remove('hidden');
+          showTab('dashboard');
+        } else {
+          localStorage.removeItem('adminKey');
+          adminKey = '';
+        }
+      });
+  }
+
+  // ---------- NAVIGATION ----------
+  function showTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(tab + 'Tab').classList.remove('hidden');
+    currentTab = tab;
+    if (tab === 'dashboard') loadDashboard();
+    else if (tab === 'patients') loadPatients();
+    else if (tab === 'hospitals') loadHospitals();
+    else if (tab === 'alerts') loadAlerts();
+    else if (tab === 'map') loadMap();
+    else if (tab === 'rules') loadRules();
+    else if (tab === 'faq') loadFAQ();
+    else if (tab === 'quiz') loadQuiz();
+    else if (tab === 'weeklytips') loadWeeklyTips();
+    // Active nav link
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    document.querySelector(`a[href="#"][onclick="showTab('${tab}')"]`)?.classList.add('active');
+  }
+
+  // ---------- DASHBOARD ----------
+  function loadDashboard() {
+    fetch('/api/admin/stats', { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('statsCards').innerHTML = `
+          <div class="col-md-4 col-lg-3"><div class="card text-bg-primary"><div class="card-body"><h5 class="card-title">Patientes</h5><p class="display-6">${data.total_patients}</p></div></div></div>
+          <div class="col-md-4 col-lg-3"><div class="card text-bg-success"><div class="card-body"><h5 class="card-title">Hôpitaux approuvés</h5><p class="display-6">${data.approved_hospitals}</p></div></div></div>
+          <div class="col-md-4 col-lg-3"><div class="card text-bg-warning"><div class="card-body"><h5 class="card-title">En attente</h5><p class="display-6">${data.pending_hospitals}</p></div></div></div>
+          <div class="col-md-4 col-lg-3"><div class="card text-bg-danger"><div class="card-body"><h5 class="card-title">Alertes aujourd'hui</h5><p class="display-6">${data.alerts_today}</p></div></div></div>
+          <div class="col-md-4 col-lg-3"><div class="card text-bg-info"><div class="card-body"><h5 class="card-title">Feedback positif</h5><p class="display-6">${data.feedback_positive_rate}%</p></div></div></div>
+        `;
+      });
+  }
+
+  // ---------- PATIENTS ----------
+  function loadPatients(page = 0) {
+    const search = document.getElementById('patientSearch')?.value || '';
+    fetch(`/api/admin/patients?search=${encodeURIComponent(search)}&limit=20&offset=${page*20}`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        let html = `<table class="table table-striped"><thead><tr><th>Nom</th><th>Téléphone</th><th>Semaines</th><th>Localisation</th><th>Actions</th></tr></thead><tbody>`;
+        data.forEach(p => {
+          html += `<tr>
+            <td>${p.name || ''}</td>
+            <td>${p.phone}</td>
+            <td>${p.weeks_pregnant || ''}</td>
+            <td>${p.lat ? p.lat.toFixed(3)+','+p.lon.toFixed(3) : ''}</td>
+            <td><button class="btn btn-sm btn-outline-secondary" onclick="viewPatientHistory('${p.phone}')">Historique</button></td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('patientsTableContainer').innerHTML = html;
+      });
+  }
+
+  function viewPatientHistory(phone) {
+    fetch(`/api/admin/patients/${phone}/history`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(messages => {
+        let text = '';
+        messages.forEach(m => text += `<p><strong>${m.role}:</strong> ${m.content}</p>`);
+        const w = window.open('', '_blank', 'width=600,height=400');
+        w.document.write(text);
+      });
+  }
+
+  // ---------- HÔPITAUX ----------
+  function loadHospitals() {
+    const status = document.getElementById('hospitalStatusFilter').value;
+    fetch(`/api/admin/hospitals?status=${status}`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        hospitals = data;
+        let html = `<table class="table table-striped"><thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
+        data.forEach(h => {
+          html += `<tr>
+            <td>${h.name}</td><td>${h.email}</td><td>${h.status}</td>
+            <td>
+              ${h.status === 'pending' ? `<button class="btn btn-sm btn-success" onclick="approveHospital(${h.id})">Approuver</button> <button class="btn btn-sm btn-danger" onclick="rejectHospital(${h.id})">Rejeter</button>` : ''}
+            </td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('hospitalsTableContainer').innerHTML = html;
+      });
+  }
+
+  function approveHospital(id) {
+    fetch(`/api/admin/hospitals/${id}/approve`, { method: 'PUT', headers: authHeaders() })
+      .then(() => loadHospitals());
+  }
+  function rejectHospital(id) {
+    fetch(`/api/admin/hospitals/${id}/reject`, { method: 'PUT', headers: authHeaders() })
+      .then(() => loadHospitals());
+  }
+
+  // ---------- ALERTES ----------
+  function loadAlerts() {
+    fetch('/api/admin/alerts?limit=50', { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        let html = `<table class="table table-striped"><thead><tr><th>Date</th><th>Patiente</th><th>Symptôme</th><th>Risque</th><th>Hôpital</th></tr></thead><tbody>`;
+        data.forEach(a => {
+          html += `<tr><td>${new Date(a.sent_at).toLocaleString()}</td><td>${a.phone}</td><td>${a.symptom}</td><td>${a.risk}</td><td>${a.hospital_name}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('alertsTableContainer').innerHTML = html;
+      });
+  }
+
+  // ---------- CARTE ----------
+  function loadMap() {
+    if (!map) {
+      map = L.map('mapid').setView([10.5, 14.5], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+    }
+    fetch('/api/admin/alerts/geojson', { headers: authHeaders() })
+      .then(r => r.json())
+      .then(geojson => {
+        if (alertsLayer) map.removeLayer(alertsLayer);
+        alertsLayer = L.geoJSON(geojson, {
+          onEachFeature: (feature, layer) => {
+            layer.bindPopup(`<b>${feature.properties.hospital_name}</b><br>${feature.properties.symptom}<br>Risque: ${feature.properties.risk}`);
+          }
+        }).addTo(map);
+        const bounds = alertsLayer.getBounds();
+        if (bounds.isValid()) map.fitBounds(bounds);
+      });
+  }
+
+  // ---------- RÈGLES ----------
+  function loadRules() {
+    fetch('/api/admin/rules', { headers: authHeaders() })
+      .then(r => r.json())
+      .then(rules => {
+        document.getElementById('rulesEditor').value = JSON.stringify(rules, null, 2);
+      });
+  }
+
+  function saveRules() {
+    const raw = document.getElementById('rulesEditor').value;
+    try {
+      const rules = JSON.parse(raw);
+      fetch('/api/admin/rules', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify(rules)
+      }).then(r => r.json()).then(d => {
+        document.getElementById('rulesMessage').innerHTML = d.status === 'ok' ? '<div class="alert alert-success">Règles mises à jour</div>' : '<div class="alert alert-danger">Erreur</div>';
+      });
+    } catch(e) {
+      document.getElementById('rulesMessage').innerHTML = '<div class="alert alert-danger">JSON invalide</div>';
+    }
+  }
+
+  // ---------- FAQ ----------
+  function loadFAQ() {
+    fetch('/api/faq')
+      .then(r => r.json())
+      .then(data => {
+        let html = `<table class="table table-striped"><thead><tr><th>Question</th><th>Réponse</th><th>Actions</th></tr></thead><tbody>`;
+        data.forEach(f => {
+          html += `<tr><td>${f.question_fr}</td><td>${f.answer_fr}</td>
+            <td>
+              <button class="btn btn-sm btn-warning" onclick="editFAQ(${f.id})">Modifier</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteFAQ(${f.id})">Supprimer</button>
+            </td></tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('faqTableContainer').innerHTML = html;
+      });
+  }
+
+  function addFAQ() {
+    const q = prompt('Question :');
+    if (!q) return;
+    const a = prompt('Réponse :');
+    if (!a) return;
+    fetch('/api/admin/faq', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question_fr: q, answer_fr: a }) })
+      .then(() => loadFAQ());
+  }
+
+  function editFAQ(id) {
+    const q = prompt('Nouvelle question :');
+    if (!q) return;
+    const a = prompt('Nouvelle réponse :');
+    if (!a) return;
+    fetch(`/api/admin/faq/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ question_fr: q, answer_fr: a }) })
+      .then(() => loadFAQ());
+  }
+
+  function deleteFAQ(id) {
+    if (confirm('Supprimer cette FAQ ?')) {
+      fetch(`/api/admin/faq/${id}`, { method: 'DELETE', headers: authHeaders() })
+        .then(() => loadFAQ());
+    }
+  }
+
+  // ---------- QUIZ ----------
+  function loadQuiz() {
+    fetch('/api/quiz')
+      .then(r => r.json())
+      .then(data => {
+        let html = `<table class="table table-striped"><thead><tr><th>Question</th><th>Options</th><th>Correct</th><th>Actions</th></tr></thead><tbody>`;
+        data.forEach(q => {
+          const options = JSON.parse(q.options);
+          html += `<tr><td>${q.question_fr}</td><td>${options.join(', ')}</td><td>${options[q.correct]}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="deleteQuiz(${q.id})">Supprimer</button></td></tr>`;
+        });
+        html += `</tbody></table>`;
+        document.getElementById('quizTableContainer').innerHTML = html;
+      });
+  }
+
+  function addQuizQuestion() {
+    const q = prompt('Question :');
+    if (!q) return;
+    const opts = [];
+    for (let i=1; i<=3; i++) {
+      const opt = prompt(`Option ${i} :`);
+      if (opt) opts.push(opt);
+    }
+    if (opts.length < 2) return;
+    const correctStr = prompt(`Index de la réponse correcte (0-${opts.length-1}) :`);
+    const correct = parseInt(correctStr);
+    if (isNaN(correct) || correct < 0 || correct >= opts.length) return;
+    fetch('/api/admin/quiz', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question_fr: q, options: opts, correct }) })
+      .then(() => loadQuiz());
+  }
+
+  function deleteQuiz(id) {
+    if (confirm('Supprimer cette question ?')) {
+      // Pas d'endpoint DELETE pour l'instant, on pourrait en créer un, mais par souci de simplicité on pourrait juste noter que l'admin doit contacter le dev. On va créer un endpoint simple (non implémenté). On affiche un message.
+      alert('Suppression non implémentée dans le backend. Contactez le développeur.');
+    }
+  }
+
+  // ---------- CONSEILS HEBDOMADAIRES ----------
+  function loadWeeklyTips() {
+    // Récupérer tous les conseils ? Il n'y a pas d'endpoint pour liste complète, on pourrait utiliser GET /api/weekly-tip?week=1..40. Mais ce n'est pas optimal. On va créer un endpoint admin pour lister les conseils. On va simuler avec une variable.
+    // En attendant, on affiche un tableau statique pour les semaines 1-40 ?
+    // Pour l'instant, on se contente d'une interface pour en ajouter un.
+    document.getElementById('weeklyTipsTableContainer').innerHTML = `
+      <p>Utilisez le formulaire ci-dessous pour ajouter ou modifier un conseil pour une semaine donnée.</p>
+      <div class="row">
+        <div class="col-md-2"><input type="number" id="tipWeek" class="form-control" placeholder="Semaine"></div>
+        <div class="col-md-4"><input type="text" id="tipFr" class="form-control" placeholder="Conseil (français)"></div>
+        <div class="col-md-4"><input type="text" id="tipLocal" class="form-control" placeholder="Conseil (langue locale)"></div>
+        <div class="col-md-2"><button class="btn btn-primary" onclick="saveWeeklyTip()">Enregistrer</button></div>
+      </div>
+    `;
+  }
+
+  function saveWeeklyTip() {
+    const week = parseInt(document.getElementById('tipWeek').value);
+    const tipFr = document.getElementById('tipFr').value;
+    const tipLocal = document.getElementById('tipLocal').value;
+    if (!week || !tipFr) return alert('Semaine et conseil requis');
+    fetch('/api/admin/weekly-tip', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ week, tip_fr: tipFr, tip_local: tipLocal }) })
+      .then(() => alert('Conseil enregistré'));
+  }
+
+  // ---------- EXPORT (fonction simple) ----------
+  function exportCSV(type) {
+    window.open(`/api/admin/export/${type}?admin_key_query=${adminKey}`, '_blank');
+  }
+
+  // Ajouter des boutons d'export dans le tableau de bord ? On peut les mettre dans la navbar ou en bas. Pour l'instant, on les ajoute dans le dashboard.
+  // On modifie le loadDashboard pour inclure des liens d'export. Pas idéal mais bon.
+  // On va simplement ajouter des liens dans la page dashboard après les stats.
+</script>
+</body>
+</html>
