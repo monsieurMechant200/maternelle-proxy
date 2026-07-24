@@ -5,7 +5,11 @@ export const config = {
 
 export default async function handler(request) {
   const url = new URL(request.url);
-  const path = url.pathname.replace(/^\/api/, '') || '/';
+  // IMPORTANT : le backend FastAPI déclare ses routes AVEC le préfixe /api
+  // (ex: @app.get("/api/admin/stats")). Il ne faut donc PAS le retirer ici,
+  // sinon le backend renvoie 404 sur tout, et le front l'affiche à tort
+  // comme "Clé invalide" (il ne distingue pas 404 de 403).
+  const path = url.pathname || '/';
   const backendUrl = (process.env.RENDER_API_URL || '').replace(/\/$/, '');
 
   if (!backendUrl) {
@@ -37,7 +41,9 @@ export default async function handler(request) {
     // Réponse du backend renvoyée telle quelle, avec CORS si nécessaire
     const headers = new Headers(res.headers);
     headers.set('Access-Control-Allow-Origin', '*');
-    // Si c'est un export CSV, ajouter le header Content-Disposition
+    // Debug : voir dans DevTools > Network > Headers quelle URL a réellement
+    // été appelée côté Render, sans avoir à redéployer pour vérifier.
+    headers.set('X-Proxy-Target', targetUrl);
     return new Response(res.body, { status: res.status, headers });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'Backend inaccessible.' }), {
