@@ -11,13 +11,14 @@ Point d’entrée unique pour l’API Maternelle Connect et interface d’admini
 - Déploiement instantané sur Vercel.
 
 ## Structure
+```
 ├── api/
 │ └── [[...path]].js # Middleware Edge
 ├── public/
 │ └── index.html # Dashboard SPA
 ├── vercel.json # Configuration Vercel
 └── README.md
-
+```
 ## Déploiement
 
 1. Forker ce dépôt.
