@@ -20,20 +20,8 @@
   </style>
 </head>
 <body>
-  <!-- Login overlay -->
-  <div id="loginOverlay" class="container d-flex justify-content-center align-items-center vh-100">
-    <div class="card p-4 shadow" style="min-width: 300px;">
-      <h3 class="text-center mb-3">Connexion</h3>
-      <div class="mb-3">
-        <input type="password" id="adminKey" class="form-control" placeholder="Clé admin">
-      </div>
-      <button class="btn btn-primary w-100" onclick="login()">Se connecter</button>
-      <p id="loginError" class="text-danger mt-2 text-center"></p>
-    </div>
-  </div>
-
-  <!-- Main App -->
-  <div id="app" class="hidden">
+  <!-- Main App – plus de login overlay -->
+  <div id="app">
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
       <div class="container-fluid">
@@ -53,9 +41,6 @@
             <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('quiz')">Quiz</a></li>
             <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('weeklytips')">Conseils</a></li>
           </ul>
-          <div class="ms-auto">
-            <button class="btn btn-outline-light btn-sm" onclick="logout()">Déconnexion</button>
-          </div>
         </div>
       </div>
     </nav>
@@ -138,62 +123,20 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <!-- Notre configuration -->
+  <script src="js/config.js"></script>
+
   <script>
   // ---------- GLOBALES ----------
-  let adminKey = localStorage.getItem('adminKey') || '';
   let currentTab = 'dashboard';
   let map = null;
   let alertsLayer = null;
   let hospitals = [];
   let selectedHospitalId = null;
 
-  // ---------- AUTH ----------
-  function login() {
-    const key = document.getElementById('adminKey').value.trim();
-    if (!key) return;
-    // Test de la clé via un appel à /api/admin/stats
-    fetch('/api/admin/stats', { headers: { 'x-admin-key': key } })
-      .then(res => {
-        if (res.ok) {
-          adminKey = key;
-          localStorage.setItem('adminKey', key);
-          document.getElementById('loginOverlay').classList.add('hidden');
-          document.getElementById('app').classList.remove('hidden');
-          showTab('dashboard');
-        } else {
-          document.getElementById('loginError').textContent = 'Clé invalide';
-        }
-      })
-      .catch(() => {
-        document.getElementById('loginError').textContent = 'Erreur réseau';
-      });
-  }
-
-  function logout() {
-    localStorage.removeItem('adminKey');
-    adminKey = '';
-    document.getElementById('loginOverlay').classList.remove('hidden');
-    document.getElementById('app').classList.add('hidden');
-  }
-
-  function authHeaders() {
-    return { 'x-admin-key': adminKey, 'Content-Type': 'application/json' };
-  }
-
-  // Vérifier si déjà connecté
-  if (adminKey) {
-    fetch('/api/admin/stats', { headers: { 'x-admin-key': adminKey } })
-      .then(res => {
-        if (res.ok) {
-          document.getElementById('loginOverlay').classList.add('hidden');
-          document.getElementById('app').classList.remove('hidden');
-          showTab('dashboard');
-        } else {
-          localStorage.removeItem('adminKey');
-          adminKey = '';
-        }
-      });
-  }
+  // L'URL de base du proxy est définie dans config.js (API_BASE_URL)
+  const API = API_BASE_URL;
 
   // ---------- NAVIGATION ----------
   function showTab(tab) {
@@ -216,7 +159,7 @@
 
   // ---------- DASHBOARD ----------
   function loadDashboard() {
-    fetch('/api/admin/stats', { headers: authHeaders() })
+    fetch(`${API}/api/admin/stats`)
       .then(r => r.json())
       .then(data => {
         document.getElementById('statsCards').innerHTML = `
@@ -226,13 +169,14 @@
           <div class="col-md-4 col-lg-3"><div class="card text-bg-danger"><div class="card-body"><h5 class="card-title">Alertes aujourd'hui</h5><p class="display-6">${data.alerts_today}</p></div></div></div>
           <div class="col-md-4 col-lg-3"><div class="card text-bg-info"><div class="card-body"><h5 class="card-title">Feedback positif</h5><p class="display-6">${data.feedback_positive_rate}%</p></div></div></div>
         `;
-      });
+      })
+      .catch(err => console.error('Erreur dashboard', err));
   }
 
   // ---------- PATIENTS ----------
   function loadPatients(page = 0) {
     const search = document.getElementById('patientSearch')?.value || '';
-    fetch(`/api/admin/patients?search=${encodeURIComponent(search)}&limit=20&offset=${page*20}`, { headers: authHeaders() })
+    fetch(`${API}/api/admin/patients?search=${encodeURIComponent(search)}&limit=20&offset=${page*20}`)
       .then(r => r.json())
       .then(data => {
         let html = `<table class="table table-striped"><thead><tr><th>Nom</th><th>Téléphone</th><th>Semaines</th><th>Localisation</th><th>Actions</th></tr></thead><tbody>`;
@@ -251,7 +195,7 @@
   }
 
   function viewPatientHistory(phone) {
-    fetch(`/api/admin/patients/${phone}/history`, { headers: authHeaders() })
+    fetch(`${API}/api/admin/patients/${phone}/history`)
       .then(r => r.json())
       .then(messages => {
         let text = '';
@@ -264,7 +208,7 @@
   // ---------- HÔPITAUX ----------
   function loadHospitals() {
     const status = document.getElementById('hospitalStatusFilter').value;
-    fetch(`/api/admin/hospitals?status=${status}`, { headers: authHeaders() })
+    fetch(`${API}/api/admin/hospitals?status=${status}`)
       .then(r => r.json())
       .then(data => {
         hospitals = data;
@@ -283,17 +227,17 @@
   }
 
   function approveHospital(id) {
-    fetch(`/api/admin/hospitals/${id}/approve`, { method: 'PUT', headers: authHeaders() })
+    fetch(`${API}/api/admin/hospitals/${id}/approve`, { method: 'PUT' })
       .then(() => loadHospitals());
   }
   function rejectHospital(id) {
-    fetch(`/api/admin/hospitals/${id}/reject`, { method: 'PUT', headers: authHeaders() })
+    fetch(`${API}/api/admin/hospitals/${id}/reject`, { method: 'PUT' })
       .then(() => loadHospitals());
   }
 
   // ---------- ALERTES ----------
   function loadAlerts() {
-    fetch('/api/admin/alerts?limit=50', { headers: authHeaders() })
+    fetch(`${API}/api/admin/alerts?limit=50`)
       .then(r => r.json())
       .then(data => {
         let html = `<table class="table table-striped"><thead><tr><th>Date</th><th>Patiente</th><th>Symptôme</th><th>Risque</th><th>Hôpital</th></tr></thead><tbody>`;
@@ -313,7 +257,7 @@
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
     }
-    fetch('/api/admin/alerts/geojson', { headers: authHeaders() })
+    fetch(`${API}/api/admin/alerts/geojson`)
       .then(r => r.json())
       .then(geojson => {
         if (alertsLayer) map.removeLayer(alertsLayer);
@@ -329,7 +273,7 @@
 
   // ---------- RÈGLES ----------
   function loadRules() {
-    fetch('/api/admin/rules', { headers: authHeaders() })
+    fetch(`${API}/api/admin/rules`)
       .then(r => r.json())
       .then(rules => {
         document.getElementById('rulesEditor').value = JSON.stringify(rules, null, 2);
@@ -340,11 +284,13 @@
     const raw = document.getElementById('rulesEditor').value;
     try {
       const rules = JSON.parse(raw);
-      fetch('/api/admin/rules', {
+      fetch(`${API}/api/admin/rules`, {
         method: 'PUT',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rules)
-      }).then(r => r.json()).then(d => {
+      })
+      .then(r => r.json())
+      .then(d => {
         document.getElementById('rulesMessage').innerHTML = d.status === 'ok' ? '<div class="alert alert-success">Règles mises à jour</div>' : '<div class="alert alert-danger">Erreur</div>';
       });
     } catch(e) {
@@ -354,7 +300,7 @@
 
   // ---------- FAQ ----------
   function loadFAQ() {
-    fetch('/api/faq')
+    fetch(`${API}/api/faq`)
       .then(r => r.json())
       .then(data => {
         let html = `<table class="table table-striped"><thead><tr><th>Question</th><th>Réponse</th><th>Actions</th></tr></thead><tbody>`;
@@ -375,8 +321,12 @@
     if (!q) return;
     const a = prompt('Réponse :');
     if (!a) return;
-    fetch('/api/admin/faq', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question_fr: q, answer_fr: a }) })
-      .then(() => loadFAQ());
+    fetch(`${API}/api/admin/faq`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_fr: q, answer_fr: a })
+    })
+    .then(() => loadFAQ());
   }
 
   function editFAQ(id) {
@@ -384,20 +334,24 @@
     if (!q) return;
     const a = prompt('Nouvelle réponse :');
     if (!a) return;
-    fetch(`/api/admin/faq/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ question_fr: q, answer_fr: a }) })
-      .then(() => loadFAQ());
+    fetch(`${API}/api/admin/faq/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_fr: q, answer_fr: a })
+    })
+    .then(() => loadFAQ());
   }
 
   function deleteFAQ(id) {
     if (confirm('Supprimer cette FAQ ?')) {
-      fetch(`/api/admin/faq/${id}`, { method: 'DELETE', headers: authHeaders() })
+      fetch(`${API}/api/admin/faq/${id}`, { method: 'DELETE' })
         .then(() => loadFAQ());
     }
   }
 
   // ---------- QUIZ ----------
   function loadQuiz() {
-    fetch('/api/quiz')
+    fetch(`${API}/api/quiz`)
       .then(r => r.json())
       .then(data => {
         let html = `<table class="table table-striped"><thead><tr><th>Question</th><th>Options</th><th>Correct</th><th>Actions</th></tr></thead><tbody>`;
@@ -423,22 +377,23 @@
     const correctStr = prompt(`Index de la réponse correcte (0-${opts.length-1}) :`);
     const correct = parseInt(correctStr);
     if (isNaN(correct) || correct < 0 || correct >= opts.length) return;
-    fetch('/api/admin/quiz', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ question_fr: q, options: opts, correct }) })
-      .then(() => loadQuiz());
+    fetch(`${API}/api/admin/quiz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question_fr: q, options: opts, correct })
+    })
+    .then(() => loadQuiz());
   }
 
   function deleteQuiz(id) {
     if (confirm('Supprimer cette question ?')) {
-      // Pas d'endpoint DELETE pour l'instant, on pourrait en créer un, mais par souci de simplicité on pourrait juste noter que l'admin doit contacter le dev. On va créer un endpoint simple (non implémenté). On affiche un message.
+      // Pas d'endpoint DELETE pour l'instant, on affiche un message.
       alert('Suppression non implémentée dans le backend. Contactez le développeur.');
     }
   }
 
   // ---------- CONSEILS HEBDOMADAIRES ----------
   function loadWeeklyTips() {
-    // Récupérer tous les conseils ? Il n'y a pas d'endpoint pour liste complète, on pourrait utiliser GET /api/weekly-tip?week=1..40. Mais ce n'est pas optimal. On va créer un endpoint admin pour lister les conseils. On va simuler avec une variable.
-    // En attendant, on affiche un tableau statique pour les semaines 1-40 ?
-    // Pour l'instant, on se contente d'une interface pour en ajouter un.
     document.getElementById('weeklyTipsTableContainer').innerHTML = `
       <p>Utilisez le formulaire ci-dessous pour ajouter ou modifier un conseil pour une semaine donnée.</p>
       <div class="row">
@@ -455,18 +410,21 @@
     const tipFr = document.getElementById('tipFr').value;
     const tipLocal = document.getElementById('tipLocal').value;
     if (!week || !tipFr) return alert('Semaine et conseil requis');
-    fetch('/api/admin/weekly-tip', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ week, tip_fr: tipFr, tip_local: tipLocal }) })
-      .then(() => alert('Conseil enregistré'));
+    fetch(`${API}/api/admin/weekly-tip`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ week, tip_fr: tipFr, tip_local: tipLocal })
+    })
+    .then(() => alert('Conseil enregistré'));
   }
 
-  // ---------- EXPORT (fonction simple) ----------
+  // ---------- EXPORT ----------
   function exportCSV(type) {
-    window.open(`/api/admin/export/${type}?admin_key_query=${adminKey}`, '_blank');
+    window.open(`${API}/api/admin/export/${type}`, '_blank');
   }
 
-  // Ajouter des boutons d'export dans le tableau de bord ? On peut les mettre dans la navbar ou en bas. Pour l'instant, on les ajoute dans le dashboard.
-  // On modifie le loadDashboard pour inclure des liens d'export. Pas idéal mais bon.
-  // On va simplement ajouter des liens dans la page dashboard après les stats.
-</script>
+  // Charger le dashboard au démarrage
+  showTab('dashboard');
+  </script>
 </body>
 </html>
