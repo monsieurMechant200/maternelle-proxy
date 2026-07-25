@@ -1,430 +1,931 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maternelle Connect – Administration</title>
-  <!-- Bootstrap 5 CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <!-- Bootstrap Icons (optionnel) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  <style>
-    body { background-color: #f8f9fa; }
-    .navbar { margin-bottom: 20px; }
-    .card { margin-bottom: 20px; }
-    #mapid { height: 400px; }
-    .hidden { display: none; }
-    .feedback-badge { font-size: 0.9em; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maternelle Connect — Administration</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F4EE;
+    --surface:#FFFFFF;
+    --surface-alt:#EFEAE0;
+    --border:#E1DBCB;
+    --ink:#16231F;
+    --ink-soft:#57665F;
+    --ink-faint:#8A968F;
+    --brand:#123C33;
+    --brand-2:#1B5B4C;
+    --brand-tint:#E4EEE9;
+    --accent:#C68A2E;
+    --risk-low:#2E8B57;
+    --risk-low-tint:#E4F3EA;
+    --risk-mid:#C68A2E;
+    --risk-mid-tint:#FBF0DE;
+    --risk-high:#B8433A;
+    --risk-high-tint:#FBE7E4;
+    --danger:#B8433A;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(18,34,28,0.06), 0 8px 24px -12px rgba(18,34,28,0.12);
+    --font-display:'Fraunces', Georgia, serif;
+    --font-body:'Inter', -apple-system, sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:14.5px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; color:var(--ink); margin:0;}
+  a{color:inherit;}
+  button{font-family:var(--font-body);}
+  ::selection{background:var(--accent); color:#fff;}
+  .hidden{display:none !important;}
+
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible{
+    outline:2px solid var(--brand-2);
+    outline-offset:2px;
+  }
+
+  #loginScreen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(198,138,46,0.10), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(18,60,51,0.10), transparent 45%),
+      var(--bg);
+    padding:24px;
+    position:relative;
+    overflow:hidden;
+  }
+  #loginScreen::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(30deg, transparent 48%, rgba(18,60,51,0.05) 49%, rgba(18,60,51,0.05) 51%, transparent 52%),
+      linear-gradient(-30deg, transparent 48%, rgba(198,138,46,0.05) 49%, rgba(198,138,46,0.05) 51%, transparent 52%);
+    background-size:64px 64px;
+    opacity:0.6;
+    pointer-events:none;
+  }
+  .login-card{
+    position:relative;
+    width:100%;
+    max-width:400px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:16px;
+    box-shadow:0 24px 60px -24px rgba(18,34,28,0.35);
+    padding:40px 36px 32px;
+  }
+  .login-mark{
+    width:44px; height:44px;
+    border-radius:10px;
+    background:var(--brand);
+    display:flex; align-items:center; justify-content:center;
+    margin-bottom:20px;
+  }
+  .login-mark svg{width:22px; height:22px;}
+  .login-card h1{font-size:1.5rem; letter-spacing:-0.01em; margin-bottom:4px;}
+  .login-sub{color:var(--ink-soft); font-size:0.92rem; margin:0 0 28px;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-size:0.78rem; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.05em; color:var(--ink-soft); margin-bottom:7px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    padding:11px 13px;
+    border:1.5px solid var(--border);
+    border-radius:8px;
+    font-family:var(--font-body);
+    font-size:0.95rem;
+    background:var(--surface);
+    color:var(--ink);
+    transition:border-color .15s;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    border-color:var(--brand-2);
+    outline:none;
+  }
+  .field-error{color:var(--danger); font-size:0.85rem; margin-top:10px; min-height:1.2em;}
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 18px;
+    border-radius:8px;
+    border:none;
+    font-weight:600;
+    font-size:0.9rem;
+    cursor:pointer;
+    transition:transform .08s ease, background .15s;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--brand); color:#fff; width:100%;}
+  .btn-primary:hover{background:var(--brand-2);}
+  .btn-primary:disabled{opacity:0.6; cursor:default;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1.5px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--ink-soft); color:var(--ink);}
+  .btn-sm{padding:6px 12px; font-size:0.82rem; border-radius:6px;}
+  .btn-success{background:var(--risk-low); color:#fff;}
+  .btn-success:hover{background:#256f45;}
+  .btn-danger{background:var(--risk-high); color:#fff;}
+  .btn-danger:hover{background:#963731;}
+  .btn-outline{background:transparent; border:1.5px solid var(--border); color:var(--ink);}
+  .btn-outline:hover{border-color:var(--brand-2); color:var(--brand-2);}
+
+  #app{display:flex; min-height:100vh;}
+
+  .sidebar{
+    width:236px;
+    flex-shrink:0;
+    background:var(--brand);
+    color:#EAF2EE;
+    display:flex;
+    flex-direction:column;
+    padding:22px 14px;
+    position:sticky;
+    top:0;
+    height:100vh;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    padding:4px 10px 22px;
+    border-bottom:1px solid rgba(234,242,238,0.12);
+    margin-bottom:14px;
+  }
+  .brand-mark{
+    width:30px; height:30px; border-radius:8px;
+    background:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .brand-mark svg{width:16px; height:16px;}
+  .brand-name{font-family:var(--font-display); font-weight:600; font-size:1.02rem; line-height:1.15;}
+  .brand-name small{display:block; font-family:var(--font-body); font-weight:400; font-size:0.68rem; color:rgba(234,242,238,0.55); letter-spacing:0.04em; text-transform:uppercase; margin-top:2px;}
+
+  .nav{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding:10px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    color:rgba(234,242,238,0.72);
+    font-size:0.89rem;
+    font-weight:500;
+    transition:background .12s, color .12s;
+    border:none;
+    background:none;
+    width:100%;
+    text-align:left;
+    font-family:var(--font-body);
+  }
+  .nav-item svg{width:17px; height:17px; flex-shrink:0; opacity:0.85;}
+  .nav-item:hover{background:rgba(234,242,238,0.08); color:#fff;}
+  .nav-item.active{background:rgba(234,242,238,0.14); color:#fff;}
+  .nav-item.active svg{opacity:1;}
+
+  .sidebar-foot{
+    border-top:1px solid rgba(234,242,238,0.12);
+    padding-top:14px;
+    margin-top:10px;
+  }
+  .session-pill{
+    display:flex; align-items:center; gap:9px;
+    padding:8px 10px;
+    border-radius:8px;
+    background:rgba(234,242,238,0.06);
+    margin-bottom:8px;
+    font-size:0.8rem;
+    color:rgba(234,242,238,0.8);
+  }
+  .session-dot{width:7px; height:7px; border-radius:50%; background:var(--risk-low); flex-shrink:0; box-shadow:0 0 0 3px rgba(46,139,87,0.2);}
+  .logout-btn{
+    display:flex; align-items:center; gap:9px; width:100%;
+    padding:9px 12px; border-radius:8px; border:none;
+    background:none; color:rgba(234,242,238,0.68);
+    font-size:0.85rem; cursor:pointer; font-family:var(--font-body);
+  }
+  .logout-btn:hover{background:rgba(234,242,238,0.08); color:#fff;}
+  .logout-btn svg{width:15px; height:15px;}
+
+  .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 32px 18px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg);
+    position:sticky; top:0; z-index:5;
+  }
+  .topbar h2{font-size:1.4rem; letter-spacing:-0.01em;}
+  .topbar-sub{color:var(--ink-soft); font-size:0.85rem; margin-top:3px;}
+  .menu-toggle{display:none; background:none; border:1.5px solid var(--border); border-radius:8px; padding:8px; cursor:pointer;}
+  .menu-toggle svg{width:18px; height:18px; display:block;}
+
+  .content{padding:26px 32px 60px; flex:1;}
+  .tab-content{animation:fadein .18s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:24px;}
+  .stat-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px; box-shadow:var(--shadow);
+  }
+  .stat-label{font-size:0.76rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:600;}
+  .stat-value{font-family:var(--font-display); font-size:2.1rem; font-weight:600; margin-top:6px; color:var(--ink);}
+  .stat-card.accent-low .stat-value{color:var(--risk-low);}
+  .stat-card.accent-mid .stat-value{color:var(--risk-mid);}
+  .stat-card.accent-high .stat-value{color:var(--risk-high);}
+
+  .panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    box-shadow:var(--shadow); padding:22px;
+  }
+  .panel + .panel{margin-top:18px;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap;}
+  .panel-head h3{font-size:1.05rem;}
+  .dash-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:18px;}
+  @media (max-width:960px){.dash-grid{grid-template-columns:1fr;}}
+
+  .table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:8px;}
+  table{width:100%; border-collapse:collapse; font-size:0.87rem;}
+  thead th{
+    text-align:left; padding:11px 14px; background:var(--surface-alt);
+    font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--ink-soft); font-weight:600; border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  tbody td{padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--surface-alt);}
+  .mono{font-family:var(--font-mono); font-size:0.83rem; color:var(--ink-soft);}
+  .empty-row td{text-align:center; color:var(--ink-faint); padding:32px; font-style:italic;}
+
+  .badge{
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:100px; font-size:0.76rem; font-weight:600;
+  }
+  .badge-low{background:var(--risk-low-tint); color:var(--risk-low);}
+  .badge-mid{background:var(--risk-mid-tint); color:var(--risk-mid);}
+  .badge-high{background:var(--risk-high-tint); color:var(--risk-high);}
+  .badge-neutral{background:var(--surface-alt); color:var(--ink-soft);}
+  .badge::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+  .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .search-input{
+    padding:9px 13px; border:1.5px solid var(--border); border-radius:8px;
+    font-family:var(--font-body); font-size:0.88rem; min-width:220px; background:var(--surface);
+  }
+  .search-input:focus{outline:none; border-color:var(--brand-2);}
+  select.filter-select{
+    padding:9px 13px; border:1.5px solid var(--border); border-radius:8px;
+    background:var(--surface); font-family:var(--font-body); font-size:0.86rem;
+  }
+
+  #mapid{height:440px; border-radius:8px; border:1px solid var(--border);}
+
+  textarea.code-editor{
+    width:100%; min-height:380px; padding:16px; border-radius:8px;
+    border:1.5px solid var(--border); font-family:var(--font-mono); font-size:0.84rem;
+    line-height:1.6; background:#12201B; color:#D9E8DE; resize:vertical;
+  }
+  textarea.code-editor:focus{outline:none; border-color:var(--brand-2);}
+
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media (max-width:640px){.form-grid{grid-template-columns:1fr;}}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(18,28,24,0.45);
+    display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal{
+    background:var(--surface); border-radius:14px; width:100%; max-width:460px;
+    box-shadow:0 30px 70px -20px rgba(18,34,28,0.4); overflow:hidden;
+  }
+  .modal-head{padding:20px 24px 4px;}
+  .modal-head h3{font-size:1.15rem;}
+  .modal-body{padding:16px 24px 4px;}
+  .modal-foot{padding:18px 24px 22px; display:flex; gap:10px; justify-content:flex-end;}
+
+  #toastHost{position:fixed; bottom:22px; right:22px; display:flex; flex-direction:column; gap:10px; z-index:200;}
+  .toast{
+    background:var(--ink); color:#fff; padding:12px 18px; border-radius:9px;
+    font-size:0.87rem; box-shadow:0 12px 30px -10px rgba(0,0,0,0.4);
+    display:flex; align-items:center; gap:10px; animation:toastin .2s ease;
+    max-width:340px;
+  }
+  .toast.error{background:var(--risk-high);}
+  .toast.success{background:var(--brand);}
+  @keyframes toastin{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+  @media (max-width:860px){
+    .sidebar{position:fixed; left:0; top:0; z-index:50; transform:translateX(-100%); transition:transform .2s ease; box-shadow:0 0 40px rgba(0,0,0,0.3);}
+    .sidebar.open{transform:translateX(0);}
+    .menu-toggle{display:inline-flex; align-items:center; justify-content:center;}
+    .content{padding:20px 16px 50px;}
+    .topbar{padding:16px 16px 14px;}
+  }
+</style>
 </head>
 <body>
-  <!-- Main App – plus de login overlay -->
-  <div id="app">
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="#">Maternelle Admin</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav">
-            <li class="nav-item"><a class="nav-link active" href="#" onclick="showTab('dashboard')">Tableau de bord</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('patients')">Patientes</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('hospitals')">Hôpitaux</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('alerts')">Alertes</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('map')">Carte</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('rules')">Règles</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('faq')">FAQ</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('quiz')">Quiz</a></li>
-            <li class="nav-item"><a class="nav-link" href="#" onclick="showTab('weeklytips')">Conseils</a></li>
-          </ul>
+
+<div id="loginScreen">
+  <form class="login-card" id="loginForm" autocomplete="off">
+    <div class="login-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#F6F4EE" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-4.35-9.5-9C.7 8.1 2.2 4 6 4c2.1 0 3.5 1.2 4.5 2.6C11.5 5.2 12.9 4 15 4c3.8 0 5.3 4.1 3.5 8-2.5 4.65-9.5 9-9.5 9z"/></svg>
+    </div>
+    <h1>Maternelle Connect</h1>
+    <p class="login-sub">Espace administrateur — connexion requise.</p>
+    <div class="field">
+      <label for="adminKeyInput">Clé administrateur</label>
+      <input type="password" id="adminKeyInput" placeholder="••••••••••••" autofocus>
+    </div>
+    <button type="submit" class="btn btn-primary" id="loginBtn">Se connecter</button>
+    <p class="field-error" id="loginError"></p>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#12201B" stroke-width="2.2" stroke-linecap="round"><path d="M12 21s-7-4.35-9.5-9C.7 8.1 2.2 4 6 4c2.1 0 3.5 1.2 4.5 2.6C11.5 5.2 12.9 4 15 4c3.8 0 5.3 4.1 3.5 8-2.5 4.65-9.5 9-9.5 9z"/></svg>
+      </div>
+      <div class="brand-name">Maternelle<br>Connect<small>Administration</small></div>
+    </div>
+    <ul class="nav" id="navList">
+      <li><button class="nav-item active" data-tab="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Tableau de bord</button></li>
+      <li><button class="nav-item" data-tab="patients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.6 3-6.2 7-6.2s7 2.6 7 6.2"/></svg>Patientes</button></li>
+      <li><button class="nav-item" data-tab="hospitals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V9l8-5 8 5v12"/><path d="M9 21v-6h6v6"/><path d="M12 9v3M10.5 10.5h3"/></svg>Hôpitaux</button></li>
+      <li><button class="nav-item" data-tab="alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9M12 21h.01"/><path d="M10.3 4.5 2.9 18a1.8 1.8 0 0 0 1.6 2.7h15a1.8 1.8 0 0 0 1.6-2.7L13.7 4.5a1.8 1.8 0 0 0-3.4 0Z"/></svg>Alertes</button></li>
+      <li><button class="nav-item" data-tab="map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 20-6-3V4l6 3 6-3 6 3v13l-6-3-6 3Z"/><path d="M9 7v13M15 4v13"/></svg>Carte</button></li>
+      <li><button class="nav-item" data-tab="rules"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6M9 16h6M9 8h2"/><path d="M7 3h10l2 2v16H5V5l2-2Z"/></svg>Règles</button></li>
+      <li><button class="nav-item" data-tab="faq"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 1.9-2.4 3.5M12 17h.01"/></svg>FAQ</button></li>
+      <li><button class="nav-item" data-tab="quiz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v12"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v3a1 1 0 0 1-1 1H6.5a2.5 2.5 0 0 1 0-1.5Z"/></svg>Quiz</button></li>
+      <li><button class="nav-item" data-tab="weeklytips"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5c0 2.5-1.5 3.8-2.3 4.9-.5.7-.7 1.2-.7 2.1H10c0-.9-.2-1.4-.7-2.1C8.5 10.8 7 9.5 7 7a5 5 0 0 1 5-5Z"/><path d="M10 18h4M9.5 21h5"/></svg>Conseils</button></li>
+    </ul>
+    <div class="sidebar-foot">
+      <div class="session-pill"><span class="session-dot"></span><span>Session administrateur active</span></div>
+      <button class="logout-btn" id="logoutBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Se déconnecter</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="menu-toggle" id="menuToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+        <div>
+          <h2 id="pageTitle">Tableau de bord</h2>
+          <p class="topbar-sub" id="pageSub">Vue d'ensemble de l'activité de la plateforme</p>
         </div>
-      </div>
-    </nav>
-
-    <div class="container-fluid">
-      <!-- Dashboard Tab -->
-      <div id="dashboardTab" class="tab-content">
-        <h2>Vue d'ensemble</h2>
-        <div class="row" id="statsCards"></div>
-      </div>
-
-      <!-- Patients Tab -->
-      <div id="patientsTab" class="tab-content hidden">
-        <h2>Patientes</h2>
-        <input type="text" id="patientSearch" class="form-control mb-2" placeholder="Rechercher...">
-        <div id="patientsTableContainer"></div>
-      </div>
-
-      <!-- Hospitals Tab -->
-      <div id="hospitalsTab" class="tab-content hidden">
-        <h2>Hôpitaux</h2>
-        <div class="mb-3">
-          <select id="hospitalStatusFilter" class="form-select w-auto" onchange="loadHospitals()">
-            <option value="">Tous</option>
-            <option value="pending">En attente</option>
-            <option value="approved">Approuvés</option>
-            <option value="rejected">Rejetés</option>
-          </select>
-        </div>
-        <div id="hospitalsTableContainer"></div>
-      </div>
-
-      <!-- Alerts Tab -->
-      <div id="alertsTab" class="tab-content hidden">
-        <h2>Alertes récentes</h2>
-        <div id="alertsTableContainer"></div>
-      </div>
-
-      <!-- Map Tab -->
-      <div id="mapTab" class="tab-content hidden">
-        <h2>Carte des alertes</h2>
-        <div id="mapid"></div>
-      </div>
-
-      <!-- Rules Tab -->
-      <div id="rulesTab" class="tab-content hidden">
-        <h2>Règles cliniques</h2>
-        <p>Modifiez le fichier de règles JSON. Ces règles sont utilisées par l'application mobile.</p>
-        <textarea id="rulesEditor" class="form-control" rows="20" style="font-family: monospace;"></textarea>
-        <button class="btn btn-primary mt-2" onclick="saveRules()">Enregistrer</button>
-        <div id="rulesMessage" class="mt-2"></div>
-      </div>
-
-      <!-- FAQ Tab -->
-      <div id="faqTab" class="tab-content hidden">
-        <h2>FAQ</h2>
-        <button class="btn btn-success mb-3" onclick="addFAQ()">Ajouter une question</button>
-        <div id="faqTableContainer"></div>
-      </div>
-
-      <!-- Quiz Tab -->
-      <div id="quizTab" class="tab-content hidden">
-        <h2>Quiz</h2>
-        <button class="btn btn-success mb-3" onclick="addQuizQuestion()">Ajouter une question</button>
-        <div id="quizTableContainer"></div>
-      </div>
-
-      <!-- Weekly Tips Tab -->
-      <div id="weeklytipsTab" class="tab-content hidden">
-        <h2>Conseils hebdomadaires</h2>
-        <button class="btn btn-success mb-3" onclick="addWeeklyTip()">Ajouter un conseil</button>
-        <div id="weeklyTipsTableContainer"></div>
       </div>
     </div>
+
+    <div class="content">
+
+      <div id="dashboardTab" class="tab-content">
+        <div class="stat-grid" id="statsCards"></div>
+        <div class="dash-grid">
+          <div class="panel">
+            <div class="panel-head"><h3>Alertes par niveau de risque</h3></div>
+            <canvas id="riskChart" height="130"></canvas>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Répartition des hôpitaux</h3></div>
+            <canvas id="hospChart" height="130"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div id="patientsTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Patientes enregistrées</h3>
+            <div class="toolbar">
+              <input type="text" id="patientSearch" class="search-input" placeholder="Rechercher par nom ou téléphone…">
+            </div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Nom</th><th>Téléphone</th><th>Semaines</th><th>Localisation</th><th></th></tr></thead>
+            <tbody id="patientsBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="hospitalsTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Hôpitaux partenaires</h3>
+            <div class="toolbar">
+              <select id="hospitalStatusFilter" class="filter-select">
+                <option value="">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="approved">Approuvés</option>
+                <option value="rejected">Rejetés</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="hospitalsBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="alertsTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head"><h3>Alertes récentes</h3></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Patiente</th><th>Symptôme</th><th>Risque</th><th>Hôpital</th></tr></thead>
+            <tbody id="alertsBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="mapTab" class="tab-content hidden">
+        <div class="panel"><div class="panel-head"><h3>Carte des alertes</h3></div><div id="mapid"></div></div>
+      </div>
+
+      <div id="rulesTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Règles cliniques</h3>
+            <button class="btn btn-primary btn-sm" id="saveRulesBtn" style="width:auto;">Enregistrer</button>
+          </div>
+          <p class="topbar-sub" style="margin:-6px 0 14px;">Modifiez le JSON utilisé par le moteur conversationnel de l'application mobile.</p>
+          <textarea id="rulesEditor" class="code-editor" spellcheck="false"></textarea>
+          <p class="field-error" id="rulesMessage"></p>
+        </div>
+      </div>
+
+      <div id="faqTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Foire aux questions</h3>
+            <button class="btn btn-outline btn-sm" id="addFaqBtn">+ Ajouter une question</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Question</th><th>Réponse</th><th></th></tr></thead>
+            <tbody id="faqBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="quizTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Questions du quiz</h3>
+            <button class="btn btn-outline btn-sm" id="addQuizBtn">+ Ajouter une question</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Question</th><th>Options</th><th>Réponse correcte</th><th></th></tr></thead>
+            <tbody id="quizBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <div id="weeklytipsTab" class="tab-content hidden">
+        <div class="panel">
+          <div class="panel-head"><h3>Conseil hebdomadaire</h3></div>
+          <p class="topbar-sub" style="margin:-6px 0 16px;">Ajoutez ou mettez à jour le conseil affiché pour une semaine de grossesse donnée.</p>
+          <div class="form-grid">
+            <div class="field"><label>Semaine de grossesse</label><input type="number" id="tipWeek" min="1" max="42" placeholder="Ex : 24"></div>
+            <div class="field"><label>Conseil (français)</label><input type="text" id="tipFr" placeholder="Ex : Pensez à votre consultation prénatale…"></div>
+          </div>
+          <div class="field"><label>Conseil (langue locale) — optionnel</label><input type="text" id="tipLocal" placeholder="Traduction locale"></div>
+          <button class="btn btn-primary" id="saveTipBtn" style="width:auto;">Enregistrer le conseil</button>
+        </div>
+      </div>
+
+    </div>
   </div>
+</div>
 
-  <!-- Bootstrap JS Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  
-  <!-- Notre configuration -->
-  <script src="js/config.js"></script>
+<div id="toastHost"></div>
 
-  <script>
-  // ---------- GLOBALES ----------
-  let currentTab = 'dashboard';
-  let map = null;
-  let alertsLayer = null;
-  let hospitals = [];
-  let selectedHospitalId = null;
-
-  // L'URL de base du proxy est définie dans config.js (API_BASE_URL)
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script>
+(() => {
   const API = API_BASE_URL;
+  let adminKey = sessionStorage.getItem('mc_admin_key') || '';
+  let map = null, alertsLayer = null, riskChart = null, hospChart = null;
 
-  // ---------- NAVIGATION ----------
+  function toast(message, type = 'success') {
+    const host = document.getElementById('toastHost');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+
+  async function api(path, options = {}) {
+    const res = await fetch(`${API}${path}`, {
+      ...options,
+      headers: { 'x-admin-key': adminKey, ...(options.headers || {}) },
+    });
+    if (res.status === 403) {
+      showLogin('Session expirée ou clé invalide — reconnectez-vous.');
+      throw new Error('403');
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.json()).error || ''; } catch (_) {}
+      toast(`Erreur (${res.status})${detail ? ' — ' + detail : ''}`, 'error');
+      throw new Error(String(res.status));
+    }
+    const ct = res.headers.get('content-type') || '';
+    return ct.includes('application/json') ? res.json() : res.text();
+  }
+
+  function showLogin(errorMsg) {
+    adminKey = '';
+    sessionStorage.removeItem('mc_admin_key');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginError').textContent = errorMsg || '';
+    document.getElementById('adminKeyInput').value = '';
+    document.getElementById('adminKeyInput').focus();
+  }
+
+  function showApp() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    showTab('dashboard');
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const key = document.getElementById('adminKeyInput').value.trim();
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = '';
+    if (!key) { errEl.textContent = 'Merci de saisir la clé administrateur.'; return; }
+    btn.disabled = true; btn.textContent = 'Connexion…';
+    adminKey = key;
+    try {
+      const res = await fetch(`${API}/api/admin/stats`, { headers: { 'x-admin-key': key } });
+      if (res.ok) {
+        sessionStorage.setItem('mc_admin_key', key);
+        showApp();
+      } else if (res.status === 403) {
+        errEl.textContent = 'Clé administrateur invalide.';
+        adminKey = '';
+      } else {
+        errEl.textContent = `Le serveur a répondu une erreur (${res.status}). Réessayez.`;
+        adminKey = '';
+      }
+    } catch (err) {
+      errEl.textContent = 'Impossible de joindre le serveur. Vérifiez votre connexion.';
+      adminKey = '';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Se connecter';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => showLogin());
+
+  const titles = {
+    dashboard: ['Tableau de bord', "Vue d'ensemble de l'activité de la plateforme"],
+    patients: ['Patientes', 'Liste des patientes enregistrées sur la plateforme'],
+    hospitals: ['Hôpitaux', 'Gestion des hôpitaux partenaires'],
+    alerts: ['Alertes', 'Historique des alertes envoyées aux hôpitaux'],
+    map: ['Carte', 'Localisation géographique des alertes'],
+    rules: ['Règles cliniques', "Moteur de règles de l'application mobile"],
+    faq: ['FAQ', 'Questions fréquentes affichées aux patientes'],
+    quiz: ['Quiz', 'Questions du quiz pédagogique'],
+    weeklytips: ['Conseils hebdomadaires', 'Conseils affichés selon la semaine de grossesse'],
+  };
+
   function showTab(tab) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     document.getElementById(tab + 'Tab').classList.remove('hidden');
-    currentTab = tab;
-    if (tab === 'dashboard') loadDashboard();
-    else if (tab === 'patients') loadPatients();
-    else if (tab === 'hospitals') loadHospitals();
-    else if (tab === 'alerts') loadAlerts();
-    else if (tab === 'map') loadMap();
-    else if (tab === 'rules') loadRules();
-    else if (tab === 'faq') loadFAQ();
-    else if (tab === 'quiz') loadQuiz();
-    else if (tab === 'weeklytips') loadWeeklyTips();
-    // Active nav link
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    document.querySelector(`a[href="#"][onclick="showTab('${tab}')"]`)?.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.getElementById('pageTitle').textContent = titles[tab][0];
+    document.getElementById('pageSub').textContent = titles[tab][1];
+    document.getElementById('sidebar').classList.remove('open');
+    const loaders = {
+      dashboard: loadDashboard, patients: loadPatients, hospitals: loadHospitals,
+      alerts: loadAlerts, map: loadMap, rules: loadRules, faq: loadFAQ,
+      quiz: loadQuiz, weeklytips: () => {},
+    };
+    loaders[tab] && loaders[tab]();
+  }
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    btn.addEventListener('click', () => showTab(btn.dataset.tab));
+  });
+  document.getElementById('menuToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+
+  function riskBadge(risk) {
+    const r = (risk || '').toLowerCase();
+    if (r.includes('elev') || r.includes('élev')) return `<span class="badge badge-high">Élevé</span>`;
+    if (r.includes('moy')) return `<span class="badge badge-mid">Moyen</span>`;
+    if (r.includes('faib')) return `<span class="badge badge-low">Faible</span>`;
+    return `<span class="badge badge-neutral">${risk || '—'}</span>`;
+  }
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
-  // ---------- DASHBOARD ----------
-  function loadDashboard() {
-    fetch(`${API}/api/admin/stats`)
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('statsCards').innerHTML = `
-          <div class="col-md-4 col-lg-3"><div class="card text-bg-primary"><div class="card-body"><h5 class="card-title">Patientes</h5><p class="display-6">${data.total_patients}</p></div></div></div>
-          <div class="col-md-4 col-lg-3"><div class="card text-bg-success"><div class="card-body"><h5 class="card-title">Hôpitaux approuvés</h5><p class="display-6">${data.approved_hospitals}</p></div></div></div>
-          <div class="col-md-4 col-lg-3"><div class="card text-bg-warning"><div class="card-body"><h5 class="card-title">En attente</h5><p class="display-6">${data.pending_hospitals}</p></div></div></div>
-          <div class="col-md-4 col-lg-3"><div class="card text-bg-danger"><div class="card-body"><h5 class="card-title">Alertes aujourd'hui</h5><p class="display-6">${data.alerts_today}</p></div></div></div>
-          <div class="col-md-4 col-lg-3"><div class="card text-bg-info"><div class="card-body"><h5 class="card-title">Feedback positif</h5><p class="display-6">${data.feedback_positive_rate}%</p></div></div></div>
-        `;
-      })
-      .catch(err => console.error('Erreur dashboard', err));
+  async function loadDashboard() {
+    const data = await api('/api/admin/stats');
+    document.getElementById('statsCards').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Patientes</div><div class="stat-value">${data.total_patients ?? 0}</div></div>
+      <div class="stat-card accent-low"><div class="stat-label">Hôpitaux approuvés</div><div class="stat-value">${data.approved_hospitals ?? 0}</div></div>
+      <div class="stat-card accent-mid"><div class="stat-label">En attente</div><div class="stat-value">${data.pending_hospitals ?? 0}</div></div>
+      <div class="stat-card accent-high"><div class="stat-label">Alertes aujourd'hui</div><div class="stat-value">${data.alerts_today ?? 0}</div></div>
+      <div class="stat-card"><div class="stat-label">Retours positifs</div><div class="stat-value">${data.feedback_positive_rate ?? 0}%</div></div>
+    `;
+    buildCharts();
   }
 
-  // ---------- PATIENTS ----------
-  function loadPatients(page = 0) {
-    const search = document.getElementById('patientSearch')?.value || '';
-    fetch(`${API}/api/admin/patients?search=${encodeURIComponent(search)}&limit=20&offset=${page*20}`)
-      .then(r => r.json())
-      .then(data => {
-        let html = `<table class="table table-striped"><thead><tr><th>Nom</th><th>Téléphone</th><th>Semaines</th><th>Localisation</th><th>Actions</th></tr></thead><tbody>`;
-        data.forEach(p => {
-          html += `<tr>
-            <td>${p.name || ''}</td>
-            <td>${p.phone}</td>
-            <td>${p.weeks_pregnant || ''}</td>
-            <td>${p.lat ? p.lat.toFixed(3)+','+p.lon.toFixed(3) : ''}</td>
-            <td><button class="btn btn-sm btn-outline-secondary" onclick="viewPatientHistory('${p.phone}')">Historique</button></td>
-          </tr>`;
-        });
-        html += `</tbody></table>`;
-        document.getElementById('patientsTableContainer').innerHTML = html;
+  async function buildCharts() {
+    try {
+      const alerts = await api('/api/admin/alerts?limit=50');
+      const counts = { faible: 0, moyen: 0, eleve: 0, autre: 0 };
+      alerts.forEach(a => {
+        const r = (a.risk || '').toLowerCase();
+        if (r.includes('elev') || r.includes('élev')) counts.eleve++;
+        else if (r.includes('moy')) counts.moyen++;
+        else if (r.includes('faib')) counts.faible++;
+        else counts.autre++;
       });
-  }
-
-  function viewPatientHistory(phone) {
-    fetch(`${API}/api/admin/patients/${phone}/history`)
-      .then(r => r.json())
-      .then(messages => {
-        let text = '';
-        messages.forEach(m => text += `<p><strong>${m.role}:</strong> ${m.content}</p>`);
-        const w = window.open('', '_blank', 'width=600,height=400');
-        w.document.write(text);
+      if (riskChart) riskChart.destroy();
+      riskChart = new Chart(document.getElementById('riskChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Faible', 'Moyen', 'Élevé'],
+          datasets: [{ data: [counts.faible, counts.moyen, counts.eleve],
+            backgroundColor: ['#2E8B57', '#C68A2E', '#B8433A'], borderWidth: 0 }],
+        },
+        options: { plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter' }, boxWidth: 10 } } }, cutout: '62%' },
       });
+    } catch (_) {}
+
+    try {
+      const hospitals = await api('/api/admin/hospitals?status=');
+      const counts = { approved: 0, pending: 0, rejected: 0 };
+      hospitals.forEach(h => { if (counts[h.status] !== undefined) counts[h.status]++; });
+      if (hospChart) hospChart.destroy();
+      hospChart = new Chart(document.getElementById('hospChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Approuvés', 'En attente', 'Rejetés'],
+          datasets: [{ data: [counts.approved, counts.pending, counts.rejected],
+            backgroundColor: ['#2E8B57', '#C68A2E', '#B8433A'], borderRadius: 6, maxBarThickness: 46 }],
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+      });
+    } catch (_) {}
   }
 
-  // ---------- HÔPITAUX ----------
-  function loadHospitals() {
+  let patientSearchTimer = null;
+  document.getElementById('patientSearch').addEventListener('input', () => {
+    clearTimeout(patientSearchTimer);
+    patientSearchTimer = setTimeout(loadPatients, 300);
+  });
+  async function loadPatients() {
+    const search = document.getElementById('patientSearch').value || '';
+    const data = await api(`/api/admin/patients?search=${encodeURIComponent(search)}&limit=50&offset=0`);
+    const body = document.getElementById('patientsBody');
+    if (!data.length) { body.innerHTML = `<tr class="empty-row"><td colspan="5">Aucune patiente trouvée.</td></tr>`; return; }
+    body.innerHTML = data.map(p => `
+      <tr>
+        <td>${escapeHtml(p.name) || '—'}</td>
+        <td class="mono">${escapeHtml(p.phone)}</td>
+        <td>${p.weeks_pregnant ?? '—'}</td>
+        <td class="mono">${p.lat ? p.lat.toFixed(3) + ', ' + p.lon.toFixed(3) : '—'}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="MC.viewHistory('${p.phone}')">Historique</button></td>
+      </tr>`).join('');
+  }
+
+  window.MC = {};
+  MC.viewHistory = async (phone) => {
+    const messages = await api(`/api/admin/patients/${phone}/history`);
+    const w = window.open('', '_blank', 'width=560,height=520');
+    w.document.write(`<style>body{font-family:Inter,sans-serif;padding:20px;color:#16231F;} p{margin:0 0 12px;} strong{color:#123C33;}</style>`);
+    messages.forEach(m => w.document.write(`<p><strong>${escapeHtml(m.role)} :</strong> ${escapeHtml(m.content)}</p>`));
+    if (!messages.length) w.document.write('<p>Aucun historique disponible.</p>');
+  };
+
+  document.getElementById('hospitalStatusFilter').addEventListener('change', loadHospitals);
+  async function loadHospitals() {
     const status = document.getElementById('hospitalStatusFilter').value;
-    fetch(`${API}/api/admin/hospitals?status=${status}`)
-      .then(r => r.json())
-      .then(data => {
-        hospitals = data;
-        let html = `<table class="table table-striped"><thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Actions</th></tr></thead><tbody>`;
-        data.forEach(h => {
-          html += `<tr>
-            <td>${h.name}</td><td>${h.email}</td><td>${h.status}</td>
-            <td>
-              ${h.status === 'pending' ? `<button class="btn btn-sm btn-success" onclick="approveHospital(${h.id})">Approuver</button> <button class="btn btn-sm btn-danger" onclick="rejectHospital(${h.id})">Rejeter</button>` : ''}
-            </td>
-          </tr>`;
-        });
-        html += `</tbody></table>`;
-        document.getElementById('hospitalsTableContainer').innerHTML = html;
-      });
+    const data = await api(`/api/admin/hospitals?status=${status}`);
+    const body = document.getElementById('hospitalsBody');
+    if (!data.length) { body.innerHTML = `<tr class="empty-row"><td colspan="4">Aucun hôpital trouvé.</td></tr>`; return; }
+    const statusBadge = s => s === 'approved' ? '<span class="badge badge-low">Approuvé</span>'
+      : s === 'rejected' ? '<span class="badge badge-high">Rejeté</span>'
+      : '<span class="badge badge-mid">En attente</span>';
+    body.innerHTML = data.map(h => `
+      <tr>
+        <td>${escapeHtml(h.name)}</td>
+        <td class="mono">${escapeHtml(h.email)}</td>
+        <td>${statusBadge(h.status)}</td>
+        <td>${h.status === 'pending' ? `
+          <button class="btn btn-success btn-sm" onclick="MC.approveHospital(${h.id})">Approuver</button>
+          <button class="btn btn-danger btn-sm" onclick="MC.rejectHospital(${h.id})">Rejeter</button>` : ''}
+        </td>
+      </tr>`).join('');
+  }
+  MC.approveHospital = async (id) => { await api(`/api/admin/hospitals/${id}/approve`, { method: 'PUT' }); toast('Hôpital approuvé.'); loadHospitals(); };
+  MC.rejectHospital = async (id) => { await api(`/api/admin/hospitals/${id}/reject`, { method: 'PUT' }); toast('Hôpital rejeté.'); loadHospitals(); };
+
+  async function loadAlerts() {
+    const data = await api('/api/admin/alerts?limit=50');
+    const body = document.getElementById('alertsBody');
+    if (!data.length) { body.innerHTML = `<tr class="empty-row"><td colspan="5">Aucune alerte enregistrée.</td></tr>`; return; }
+    body.innerHTML = data.map(a => `
+      <tr>
+        <td class="mono">${new Date(a.sent_at).toLocaleString('fr-FR')}</td>
+        <td class="mono">${escapeHtml(a.phone)}</td>
+        <td>${escapeHtml(a.symptom)}</td>
+        <td>${riskBadge(a.risk)}</td>
+        <td>${escapeHtml(a.hospital_name) || '—'}</td>
+      </tr>`).join('');
   }
 
-  function approveHospital(id) {
-    fetch(`${API}/api/admin/hospitals/${id}/approve`, { method: 'PUT' })
-      .then(() => loadHospitals());
-  }
-  function rejectHospital(id) {
-    fetch(`${API}/api/admin/hospitals/${id}/reject`, { method: 'PUT' })
-      .then(() => loadHospitals());
-  }
-
-  // ---------- ALERTES ----------
-  function loadAlerts() {
-    fetch(`${API}/api/admin/alerts?limit=50`)
-      .then(r => r.json())
-      .then(data => {
-        let html = `<table class="table table-striped"><thead><tr><th>Date</th><th>Patiente</th><th>Symptôme</th><th>Risque</th><th>Hôpital</th></tr></thead><tbody>`;
-        data.forEach(a => {
-          html += `<tr><td>${new Date(a.sent_at).toLocaleString()}</td><td>${a.phone}</td><td>${a.symptom}</td><td>${a.risk}</td><td>${a.hospital_name}</td></tr>`;
-        });
-        html += `</tbody></table>`;
-        document.getElementById('alertsTableContainer').innerHTML = html;
-      });
-  }
-
-  // ---------- CARTE ----------
-  function loadMap() {
+  async function loadMap() {
     if (!map) {
       map = L.map('mapid').setView([10.5, 14.5], 7);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     }
-    fetch(`${API}/api/admin/alerts/geojson`)
-      .then(r => r.json())
-      .then(geojson => {
-        if (alertsLayer) map.removeLayer(alertsLayer);
-        alertsLayer = L.geoJSON(geojson, {
-          onEachFeature: (feature, layer) => {
-            layer.bindPopup(`<b>${feature.properties.hospital_name}</b><br>${feature.properties.symptom}<br>Risque: ${feature.properties.risk}`);
-          }
-        }).addTo(map);
-        const bounds = alertsLayer.getBounds();
-        if (bounds.isValid()) map.fitBounds(bounds);
-      });
+    setTimeout(() => map.invalidateSize(), 80);
+    const geojson = await api('/api/admin/alerts/geojson');
+    if (alertsLayer) map.removeLayer(alertsLayer);
+    const riskColor = r => {
+      const v = (r || '').toLowerCase();
+      if (v.includes('elev') || v.includes('élev')) return '#B8433A';
+      if (v.includes('moy')) return '#C68A2E';
+      return '#2E8B57';
+    };
+    alertsLayer = L.geoJSON(geojson, {
+      pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+        radius: 8, fillColor: riskColor(feature.properties.risk), color: '#fff', weight: 2, fillOpacity: 0.9,
+      }),
+      onEachFeature: (feature, layer) => {
+        layer.bindPopup(`<strong>${escapeHtml(feature.properties.hospital_name || '')}</strong><br>${escapeHtml(feature.properties.symptom || '')}<br>Risque : ${escapeHtml(feature.properties.risk || '')}`);
+      },
+    }).addTo(map);
+    if (alertsLayer.getBounds().isValid()) map.fitBounds(alertsLayer.getBounds(), { maxZoom: 12 });
   }
 
-  // ---------- RÈGLES ----------
-  function loadRules() {
-    fetch(`${API}/api/admin/rules`)
-      .then(r => r.json())
-      .then(rules => {
-        document.getElementById('rulesEditor').value = JSON.stringify(rules, null, 2);
-      });
+  async function loadRules() {
+    const rules = await api('/api/admin/rules');
+    document.getElementById('rulesEditor').value = JSON.stringify(rules, null, 2);
+    document.getElementById('rulesMessage').textContent = '';
   }
-
-  function saveRules() {
-    const raw = document.getElementById('rulesEditor').value;
+  document.getElementById('saveRulesBtn').addEventListener('click', async () => {
+    const msgEl = document.getElementById('rulesMessage');
+    let rules;
+    try { rules = JSON.parse(document.getElementById('rulesEditor').value); }
+    catch (e) { msgEl.textContent = 'JSON invalide — vérifiez la syntaxe.'; msgEl.style.color = 'var(--danger)'; return; }
     try {
-      const rules = JSON.parse(raw);
-      fetch(`${API}/api/admin/rules`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rules)
-      })
-      .then(r => r.json())
-      .then(d => {
-        document.getElementById('rulesMessage').innerHTML = d.status === 'ok' ? '<div class="alert alert-success">Règles mises à jour</div>' : '<div class="alert alert-danger">Erreur</div>';
-      });
-    } catch(e) {
-      document.getElementById('rulesMessage').innerHTML = '<div class="alert alert-danger">JSON invalide</div>';
-    }
+      await api('/api/admin/rules', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rules) });
+      msgEl.style.color = 'var(--risk-low)'; msgEl.textContent = 'Règles enregistrées avec succès.';
+      toast('Règles mises à jour.');
+    } catch (_) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = "Échec de l'enregistrement."; }
+  });
+
+  function openModal({ title, fields, onSave, saveLabel = 'Enregistrer' }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <div class="modal-head"><h3>${title}</h3></div>
+        <div class="modal-body">${fields.map(f => `
+          <div class="field">
+            <label>${f.label}</label>
+            ${f.type === 'textarea'
+              ? `<textarea rows="3" data-name="${f.name}">${escapeHtml(f.value || '')}</textarea>`
+              : `<input type="${f.type || 'text'}" data-name="${f.name}" value="${escapeHtml(f.value ?? '')}" ${f.min !== undefined ? `min="${f.min}"` : ''}>`}
+          </div>`).join('')}
+          <p class="field-error" data-modal-error></p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" data-cancel>Annuler</button>
+          <button class="btn btn-primary" data-save style="width:auto;">${saveLabel}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    overlay.querySelector('[data-cancel]').addEventListener('click', close);
+    overlay.querySelector('[data-save]').addEventListener('click', async () => {
+      const values = {};
+      fields.forEach(f => { values[f.name] = overlay.querySelector(`[data-name="${f.name}"]`).value; });
+      const errEl = overlay.querySelector('[data-modal-error]');
+      try { await onSave(values); close(); }
+      catch (e) { errEl.textContent = e.message || 'Une erreur est survenue.'; }
+    });
+    setTimeout(() => overlay.querySelector('input,textarea')?.focus(), 30);
   }
 
-  // ---------- FAQ ----------
-  function loadFAQ() {
-    fetch(`${API}/api/faq`)
-      .then(r => r.json())
-      .then(data => {
-        let html = `<table class="table table-striped"><thead><tr><th>Question</th><th>Réponse</th><th>Actions</th></tr></thead><tbody>`;
-        data.forEach(f => {
-          html += `<tr><td>${f.question_fr}</td><td>${f.answer_fr}</td>
-            <td>
-              <button class="btn btn-sm btn-warning" onclick="editFAQ(${f.id})">Modifier</button>
-              <button class="btn btn-sm btn-danger" onclick="deleteFAQ(${f.id})">Supprimer</button>
-            </td></tr>`;
-        });
-        html += `</tbody></table>`;
-        document.getElementById('faqTableContainer').innerHTML = html;
-      });
+  async function loadFAQ() {
+    const data = await api('/api/faq');
+    const body = document.getElementById('faqBody');
+    if (!data.length) { body.innerHTML = `<tr class="empty-row"><td colspan="3">Aucune question pour le moment.</td></tr>`; return; }
+    body.innerHTML = data.map(f => `
+      <tr>
+        <td>${escapeHtml(f.question_fr)}</td>
+        <td>${escapeHtml(f.answer_fr)}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-outline btn-sm" onclick="MC.editFaq(${f.id}, '${encodeURIComponent(f.question_fr)}', '${encodeURIComponent(f.answer_fr)}')">Modifier</button>
+          <button class="btn btn-danger btn-sm" onclick="MC.deleteFaq(${f.id})">Supprimer</button>
+        </td>
+      </tr>`).join('');
   }
+  document.getElementById('addFaqBtn').addEventListener('click', () => {
+    openModal({
+      title: 'Ajouter une question',
+      fields: [{ name: 'q', label: 'Question', type: 'textarea' }, { name: 'a', label: 'Réponse', type: 'textarea' }],
+      onSave: async (v) => {
+        if (!v.q.trim() || !v.a.trim()) throw new Error('Question et réponse requises.');
+        await api('/api/admin/faq', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question_fr: v.q, answer_fr: v.a }) });
+        toast('Question ajoutée.'); loadFAQ();
+      },
+    });
+  });
+  MC.editFaq = (id, q, a) => {
+    openModal({
+      title: 'Modifier la question',
+      fields: [{ name: 'q', label: 'Question', type: 'textarea', value: decodeURIComponent(q) }, { name: 'a', label: 'Réponse', type: 'textarea', value: decodeURIComponent(a) }],
+      onSave: async (v) => {
+        await api(`/api/admin/faq/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question_fr: v.q, answer_fr: v.a }) });
+        toast('Question mise à jour.'); loadFAQ();
+      },
+    });
+  };
+  MC.deleteFaq = async (id) => {
+    if (!confirm('Supprimer cette question ?')) return;
+    await api(`/api/admin/faq/${id}`, { method: 'DELETE' }); toast('Question supprimée.'); loadFAQ();
+  };
 
-  function addFAQ() {
-    const q = prompt('Question :');
-    if (!q) return;
-    const a = prompt('Réponse :');
-    if (!a) return;
-    fetch(`${API}/api/admin/faq`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question_fr: q, answer_fr: a })
-    })
-    .then(() => loadFAQ());
+  async function loadQuiz() {
+    const data = await api('/api/quiz');
+    const body = document.getElementById('quizBody');
+    if (!data.length) { body.innerHTML = `<tr class="empty-row"><td colspan="4">Aucune question pour le moment.</td></tr>`; return; }
+    body.innerHTML = data.map(q => {
+      let options = [];
+      try { options = JSON.parse(q.options); } catch (_) {}
+      return `<tr>
+        <td>${escapeHtml(q.question_fr)}</td>
+        <td>${options.map(escapeHtml).join(', ')}</td>
+        <td><span class="badge badge-low">${escapeHtml(options[q.correct] ?? '—')}</span></td>
+        <td><button class="btn btn-danger btn-sm" onclick="MC.deleteQuiz(${q.id})">Supprimer</button></td>
+      </tr>`;
+    }).join('');
   }
+  document.getElementById('addQuizBtn').addEventListener('click', () => {
+    openModal({
+      title: 'Ajouter une question de quiz',
+      fields: [
+        { name: 'q', label: 'Question', type: 'textarea' },
+        { name: 'o1', label: 'Option 1' }, { name: 'o2', label: 'Option 2' }, { name: 'o3', label: 'Option 3 (optionnel)' },
+        { name: 'correct', label: 'Index de la bonne réponse (0, 1 ou 2)', type: 'number', min: 0 },
+      ],
+      onSave: async (v) => {
+        const opts = [v.o1, v.o2, v.o3].map(s => s.trim()).filter(Boolean);
+        const correct = parseInt(v.correct, 10);
+        if (!v.q.trim() || opts.length < 2) throw new Error('Question et au moins 2 options requises.');
+        if (isNaN(correct) || correct < 0 || correct >= opts.length) throw new Error('Index de réponse correcte invalide.');
+        await api('/api/admin/quiz', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question_fr: v.q, options: opts, correct }) });
+        toast('Question ajoutée.'); loadQuiz();
+      },
+    });
+  });
+  MC.deleteQuiz = () => toast("Suppression non prise en charge par le serveur pour l'instant.", 'error');
 
-  function editFAQ(id) {
-    const q = prompt('Nouvelle question :');
-    if (!q) return;
-    const a = prompt('Nouvelle réponse :');
-    if (!a) return;
-    fetch(`${API}/api/admin/faq/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question_fr: q, answer_fr: a })
-    })
-    .then(() => loadFAQ());
+  document.getElementById('saveTipBtn').addEventListener('click', async () => {
+    const week = parseInt(document.getElementById('tipWeek').value, 10);
+    const tipFr = document.getElementById('tipFr').value.trim();
+    const tipLocal = document.getElementById('tipLocal').value.trim();
+    if (!week || !tipFr) { toast('Semaine et conseil requis.', 'error'); return; }
+    await api('/api/admin/weekly-tip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ week, tip_fr: tipFr, tip_local: tipLocal }) });
+    toast('Conseil enregistré.');
+    document.getElementById('tipWeek').value = ''; document.getElementById('tipFr').value = ''; document.getElementById('tipLocal').value = '';
+  });
+
+  if (adminKey) {
+    fetch(`${API}/api/admin/stats`, { headers: { 'x-admin-key': adminKey } })
+      .then(res => { if (res.ok) showApp(); else showLogin(); })
+      .catch(() => showLogin());
   }
-
-  function deleteFAQ(id) {
-    if (confirm('Supprimer cette FAQ ?')) {
-      fetch(`${API}/api/admin/faq/${id}`, { method: 'DELETE' })
-        .then(() => loadFAQ());
-    }
-  }
-
-  // ---------- QUIZ ----------
-  function loadQuiz() {
-    fetch(`${API}/api/quiz`)
-      .then(r => r.json())
-      .then(data => {
-        let html = `<table class="table table-striped"><thead><tr><th>Question</th><th>Options</th><th>Correct</th><th>Actions</th></tr></thead><tbody>`;
-        data.forEach(q => {
-          const options = JSON.parse(q.options);
-          html += `<tr><td>${q.question_fr}</td><td>${options.join(', ')}</td><td>${options[q.correct]}</td>
-            <td><button class="btn btn-sm btn-danger" onclick="deleteQuiz(${q.id})">Supprimer</button></td></tr>`;
-        });
-        html += `</tbody></table>`;
-        document.getElementById('quizTableContainer').innerHTML = html;
-      });
-  }
-
-  function addQuizQuestion() {
-    const q = prompt('Question :');
-    if (!q) return;
-    const opts = [];
-    for (let i=1; i<=3; i++) {
-      const opt = prompt(`Option ${i} :`);
-      if (opt) opts.push(opt);
-    }
-    if (opts.length < 2) return;
-    const correctStr = prompt(`Index de la réponse correcte (0-${opts.length-1}) :`);
-    const correct = parseInt(correctStr);
-    if (isNaN(correct) || correct < 0 || correct >= opts.length) return;
-    fetch(`${API}/api/admin/quiz`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question_fr: q, options: opts, correct })
-    })
-    .then(() => loadQuiz());
-  }
-
-  function deleteQuiz(id) {
-    if (confirm('Supprimer cette question ?')) {
-      // Pas d'endpoint DELETE pour l'instant, on affiche un message.
-      alert('Suppression non implémentée dans le backend. Contactez le développeur.');
-    }
-  }
-
-  // ---------- CONSEILS HEBDOMADAIRES ----------
-  function loadWeeklyTips() {
-    document.getElementById('weeklyTipsTableContainer').innerHTML = `
-      <p>Utilisez le formulaire ci-dessous pour ajouter ou modifier un conseil pour une semaine donnée.</p>
-      <div class="row">
-        <div class="col-md-2"><input type="number" id="tipWeek" class="form-control" placeholder="Semaine"></div>
-        <div class="col-md-4"><input type="text" id="tipFr" class="form-control" placeholder="Conseil (français)"></div>
-        <div class="col-md-4"><input type="text" id="tipLocal" class="form-control" placeholder="Conseil (langue locale)"></div>
-        <div class="col-md-2"><button class="btn btn-primary" onclick="saveWeeklyTip()">Enregistrer</button></div>
-      </div>
-    `;
-  }
-
-  function saveWeeklyTip() {
-    const week = parseInt(document.getElementById('tipWeek').value);
-    const tipFr = document.getElementById('tipFr').value;
-    const tipLocal = document.getElementById('tipLocal').value;
-    if (!week || !tipFr) return alert('Semaine et conseil requis');
-    fetch(`${API}/api/admin/weekly-tip`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ week, tip_fr: tipFr, tip_local: tipLocal })
-    })
-    .then(() => alert('Conseil enregistré'));
-  }
-
-  // ---------- EXPORT ----------
-  function exportCSV(type) {
-    window.open(`${API}/api/admin/export/${type}`, '_blank');
-  }
-
-  // Charger le dashboard au démarrage
-  showTab('dashboard');
-  </script>
+})();
+</script>
 </body>
 </html>
