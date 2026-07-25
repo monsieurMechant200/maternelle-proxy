@@ -1,14 +1,12 @@
-// process.env est disponible dans l'Edge Runtime Vercel mais absent des types DOM/ESNext
+// middleware.ts
 declare const process: { env: Record<string, string | undefined> }
 
 export const config = {
-  // Ne match QUE les requêtes vers /api/* — tout le reste (front statique) passe normalement.
   matcher: ['/api/:path*'],
 }
 
 export default async function middleware(request: Request) {
   const url = new URL(request.url)
-
   const renderApiUrl = (process.env.RENDER_API_URL ?? '').replace(/\/$/, '')
 
   if (!renderApiUrl) {
@@ -18,8 +16,6 @@ export default async function middleware(request: Request) {
     )
   }
 
-  // Le backend FastAPI déclare ses routes AVEC le préfixe /api
-  // (ex: @app.get("/api/admin/stats")) donc on NE retire PAS /api ici.
   const targetUrl = renderApiUrl + url.pathname + url.search
 
   const forwardHeaders = new Headers()
@@ -34,9 +30,9 @@ export default async function middleware(request: Request) {
     method: request.method,
     headers: forwardHeaders,
     body: isBodyless ? undefined : request.body,
+    // Ajout d'un timeout pour éviter les blocages prolongés (cold start de Render)
+    signal: AbortSignal.timeout(30_000),
   }
-  // duplex ne doit être précisé QUE quand un body en flux est réellement transmis,
-  // sinon certains runtimes (dont l'Edge Runtime Vercel) lèvent une erreur.
   if (!isBodyless) {
     fetchOptions.duplex = 'half'
   }
@@ -44,20 +40,39 @@ export default async function middleware(request: Request) {
   try {
     const res = await fetch(targetUrl, fetchOptions)
 
-    const headers = new Headers(res.headers)
+    // Bufferiser la réponse au lieu de streamer res.body
+    // → plus de crash 500 non capturé dans l'Edge Runtime
+    const buffer = await res.arrayBuffer()
+
+    const headers = new Headers()
+    // Transmettre les en-têtes utiles de la réponse d'origine
+    const contentType = res.headers.get('content-type')
+    if (contentType) headers.set('content-type', contentType)
+    const cacheControl = res.headers.get('cache-control')
+    if (cacheControl) headers.set('cache-control', cacheControl)
     headers.set('Access-Control-Allow-Origin', '*')
-    // Debug temporaire : confirme quelle URL a été appelée côté Render.
+    // Debug temporaire (peut être retiré une fois stable)
     headers.set('X-Proxy-Target', targetUrl)
 
-    return new Response(res.body, { status: res.status, headers })
+    return new Response(buffer, {
+      status: res.status,
+      statusText: res.statusText,
+      headers,
+    })
   } catch (err) {
-    // Debug temporaire : on expose le vrai message d'erreur pour diagnostiquer.
-    // À retirer (remettre un message générique) une fois le problème identifié.
+    // Toute erreur (fetch, timeout, bufferisation) est capturée proprement
     const message = err instanceof Error ? err.message : String(err)
     console.error('Erreur proxy middleware:', message)
     return new Response(
-      JSON.stringify({ error: 'Backend inaccessible.', debug: message, target: targetUrl }),
-      { status: 502, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        error: 'Backend inaccessible.',
+        debug: message,
+        target: targetUrl,
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }
     )
   }
 }
