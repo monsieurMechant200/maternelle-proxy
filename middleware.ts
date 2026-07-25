@@ -30,7 +30,6 @@ export default async function middleware(request: Request) {
     method: request.method,
     headers: forwardHeaders,
     body: isBodyless ? undefined : request.body,
-    // Ajout d'un timeout pour éviter les blocages prolongés (cold start de Render)
     signal: AbortSignal.timeout(30_000),
   }
   if (!isBodyless) {
@@ -38,29 +37,42 @@ export default async function middleware(request: Request) {
   }
 
   try {
-    const res = await fetch(targetUrl, fetchOptions)
+    const backendRes = await fetch(targetUrl, fetchOptions)
 
-    // Bufferiser la réponse au lieu de streamer res.body
-    // → plus de crash 500 non capturé dans l'Edge Runtime
-    const buffer = await res.arrayBuffer()
+    const buffer = await backendRes.arrayBuffer()
+    const contentType = backendRes.headers.get('content-type') || 'application/octet-stream'
 
-    const headers = new Headers()
-    // Transmettre les en-têtes utiles de la réponse d'origine
-    const contentType = res.headers.get('content-type')
-    if (contentType) headers.set('content-type', contentType)
-    const cacheControl = res.headers.get('cache-control')
-    if (cacheControl) headers.set('cache-control', cacheControl)
-    headers.set('Access-Control-Allow-Origin', '*')
-    // Debug temporaire (peut être retiré une fois stable)
-    headers.set('X-Proxy-Target', targetUrl)
+    let finalStatus = backendRes.status
+    let bodyText = new TextDecoder().decode(buffer)
 
-    return new Response(buffer, {
-      status: res.status,
-      statusText: res.statusText,
-      headers,
+    if (finalStatus >= 200 && finalStatus < 300 && contentType.includes('application/json')) {
+      try {
+        const parsed = JSON.parse(bodyText)
+        if (parsed && typeof parsed.code === 'number' && parsed.code >= 400 && parsed.code < 600) {
+          finalStatus = parsed.code
+          bodyText = JSON.stringify({
+            error: parsed.detail || parsed.error || 'Erreur',
+            code: finalStatus,
+          })
+        }
+      } catch (_) {
+      }
+    }
+
+
+    const responseHeaders = new Headers()
+    responseHeaders.set('content-type', 'application/json; charset=utf-8')
+    responseHeaders.set('Access-Control-Allow-Origin', '*')
+    responseHeaders.set('X-Proxy-Target', targetUrl)
+    const cacheControl = backendRes.headers.get('cache-control')
+    if (cacheControl) responseHeaders.set('cache-control', cacheControl)
+
+    return new Response(bodyText, {
+      status: finalStatus,
+      statusText: finalStatus !== backendRes.status ? 'Error' : backendRes.statusText,
+      headers: responseHeaders,
     })
   } catch (err) {
-    // Toute erreur (fetch, timeout, bufferisation) est capturée proprement
     const message = err instanceof Error ? err.message : String(err)
     console.error('Erreur proxy middleware:', message)
     return new Response(
@@ -69,10 +81,7 @@ export default async function middleware(request: Request) {
         debug: message,
         target: targetUrl,
       }),
-      {
-        status: 502,
-        headers: { 'Content-Type': 'application/json' },
-      }
+      { status: 502, headers: { 'Content-Type': 'application/json' } }
     )
   }
 }
