@@ -30,14 +30,19 @@ export default async function middleware(request: Request) {
 
   const isBodyless = ['GET', 'HEAD', 'OPTIONS'].includes(request.method.toUpperCase())
 
+  const fetchOptions: RequestInit & { duplex?: 'half' } = {
+    method: request.method,
+    headers: forwardHeaders,
+    body: isBodyless ? undefined : request.body,
+  }
+  // duplex ne doit être précisé QUE quand un body en flux est réellement transmis,
+  // sinon certains runtimes (dont l'Edge Runtime Vercel) lèvent une erreur.
+  if (!isBodyless) {
+    fetchOptions.duplex = 'half'
+  }
+
   try {
-    const res = await fetch(targetUrl, {
-      method: request.method,
-      headers: forwardHeaders,
-      body: isBodyless ? undefined : request.body,
-      // @ts-ignore - duplex requis pour les corps en streaming dans Edge Runtime
-      duplex: 'half',
-    })
+    const res = await fetch(targetUrl, fetchOptions)
 
     const headers = new Headers(res.headers)
     headers.set('Access-Control-Allow-Origin', '*')
@@ -45,9 +50,13 @@ export default async function middleware(request: Request) {
     headers.set('X-Proxy-Target', targetUrl)
 
     return new Response(res.body, { status: res.status, headers })
-  } catch {
+  } catch (err) {
+    // Debug temporaire : on expose le vrai message d'erreur pour diagnostiquer.
+    // À retirer (remettre un message générique) une fois le problème identifié.
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Erreur proxy middleware:', message)
     return new Response(
-      JSON.stringify({ error: 'Backend inaccessible.' }),
+      JSON.stringify({ error: 'Backend inaccessible.', debug: message, target: targetUrl }),
       { status: 502, headers: { 'Content-Type': 'application/json' } }
     )
   }
